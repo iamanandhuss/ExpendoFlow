@@ -19,7 +19,7 @@ const DebtManager = ({ debts, onAddDebt, onUpdateDebt, onDeleteDebt }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.person || !formData.amount) return;
-    onAddDebt({ ...formData, type, id: Date.now(), status: 'pending', remaining: parseFloat(formData.amount) });
+    onAddDebt({ ...formData, type, status: 'pending', remaining: parseFloat(formData.amount) });
     setIsAdding(false);
     setFormData({ person: '', amount: '', date: new Date().toISOString().split('T')[0], dueDate: '', notes: '' });
   };

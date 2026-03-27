@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 
 const TRANSACTION_CATEGORIES = {
-  income: ['Salary', 'Freelance', 'Investment', 'Gift', 'Other'],
-  expense: ['Food', 'Travel', 'Rent', 'EMI', 'Shopping', 'Health', 'Entertainment', 'Personal', 'Other']
+  income: ['Salary', 'Freelance', 'Investment', 'Gift', 'Debt', 'Other'],
+  expense: ['Food', 'Travel', 'Rent', 'EMI', 'Shopping', 'Health', 'Entertainment', 'Personal', 'Debt', 'Other']
 };
 
 const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) => {
@@ -31,7 +31,7 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.title || !formData.amount) return;
-    onAddTransaction({ ...formData, id: Date.now(), amount: parseFloat(formData.amount) });
+    onAddTransaction({ ...formData, amount: parseFloat(formData.amount) });
     setIsAdding(false);
     setFormData({ 
       title: '', amount: '', type: 'expense', category: 'Food', 

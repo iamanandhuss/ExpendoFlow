@@ -82,7 +82,8 @@ function App() {
 
   // Handlers - Sync with Supabase
   const addTransaction = async (tx) => {
-    const { data, error } = await supabase.from('transactions').insert([{ ...tx, user_id: session.user.id }]).select();
+    const { id, ...txData } = tx;
+    const { data, error } = await supabase.from('transactions').insert([{ ...txData, user_id: session.user.id }]).select();
     if (data) setTransactions([data[0], ...transactions]);
   };
 
@@ -92,13 +93,40 @@ function App() {
   };
 
   const addDebt = async (debt) => {
-    const { data, error } = await supabase.from('debts').insert([{ ...debt, user_id: session.user.id }]).select();
-    if (data) setDebts([data[0], ...debts]);
+    const { id, ...debtData } = debt;
+    const { data, error } = await supabase.from('debts').insert([{ ...debtData, user_id: session.user.id }]).select();
+    if (data) {
+      const newDebt = data[0];
+      setDebts([newDebt, ...debts]);
+      
+      // Sync with Transactions
+      addTransaction({
+        title: newDebt.type === 'give' ? `Debt Given to ${newDebt.person}` : `Debt Taken from ${newDebt.person}`,
+        amount: newDebt.amount,
+        type: newDebt.type === 'give' ? 'expense' : 'income',
+        category: 'Debt',
+        date: newDebt.date
+      });
+    }
   };
 
   const updateDebt = async (id, updates) => {
     const { data, error } = await supabase.from('debts').update(updates).eq('id', id).select();
-    if (data) setDebts(debts.map(d => d.id === id ? data[0] : d));
+    if (data) {
+      const updatedDebt = data[0];
+      setDebts(debts.map(d => d.id === id ? updatedDebt : d));
+
+      // If marked as completed, create settlement transaction
+      if (updates.status === 'completed') {
+        addTransaction({
+          title: updatedDebt.type === 'give' ? `Debt Received from ${updatedDebt.person}` : `Debt Repaid to ${updatedDebt.person}`,
+          amount: updatedDebt.amount,
+          type: updatedDebt.type === 'give' ? 'income' : 'expense',
+          category: 'Debt',
+          date: new Date().toISOString().split('T')[0]
+        });
+      }
+    }
   };
 
   const deleteDebt = async (id) => {
@@ -107,7 +135,8 @@ function App() {
   };
 
   const addCard = async (card) => {
-    const { data, error } = await supabase.from('credit_cards').insert([{ ...card, user_id: session.user.id }]).select();
+    const { id, ...cardData } = card;
+    const { data, error } = await supabase.from('credit_cards').insert([{ ...cardData, user_id: session.user.id }]).select();
     if (data) setCards([data[0], ...cards]);
   };
 
@@ -148,16 +177,15 @@ function App() {
   const calculateTotals = () => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
     const expense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    const debtGiven = debts.filter(d => d.type === 'give').reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.remaining)), 0);
-    const debtTaken = debts.filter(d => d.type === 'take').reduce((sum, d) => sum + parseFloat(d.amount), 0);
-    const debtRepaid = debts.filter(d => d.type === 'take').reduce((sum, d) => sum + (parseFloat(d.amount) - parseFloat(d.remaining)), 0);
-    const initialDebtGiven = debts.filter(d => d.type === 'give').reduce((sum, d) => sum + parseFloat(d.amount), 0);
     
+    // Balance is now simple income - expense because debts are tracked as transactions
+    const balance = income - expense;
+
     const receivable = debts.filter(d => d.type === 'give' && d.status !== 'completed').reduce((sum, d) => sum + parseFloat(d.remaining), 0);
     const payable = debts.filter(d => d.type === 'take' && d.status !== 'completed').reduce((sum, d) => sum + parseFloat(d.remaining), 0);
 
     return {
-      balance: income - expense - initialDebtGiven + debtGiven + debtTaken - debtRepaid,
+      balance,
       income,
       expense,
       receivable,

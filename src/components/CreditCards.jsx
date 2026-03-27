@@ -20,14 +20,14 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
   const handleAddCard = (e) => {
     e.preventDefault();
     if (!formData.bank || !formData.limit) return;
-    onAddCard({ ...formData, id: Date.now(), limit: parseFloat(formData.limit), used: 0, transactions: [] });
+    onAddCard({ ...formData, limit: parseFloat(formData.limit), used: 0, transactions: [] });
     setIsAdding(false);
     setFormData({ bank: '', limit: '', lastFour: '', dueDate: '15' });
   };
 
   const handleAddUsageSubmit = (cardId) => {
     if (!usageData.amount) return;
-    onAddUsage(cardId, { ...usageData, id: Date.now(), amount: parseFloat(usageData.amount) });
+    onAddUsage(cardId, { ...usageData, amount: parseFloat(usageData.amount) });
     setIsAddingUsage(null);
     setUsageData({ amount: '', title: '', date: new Date().toISOString().split('T')[0] });
   };
