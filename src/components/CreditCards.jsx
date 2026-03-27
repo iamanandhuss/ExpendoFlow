@@ -14,15 +14,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingUsage, setIsAddingUsage] = useState(null); // card id
-  const [formData, setFormData] = useState({ bank: '', limit: '', lastFour: '', dueDate: '15' });
+  const [formData, setFormData] = useState({ bank: '', credit_limit: '', last_four: '', due_date_day: '15' });
   const [usageData, setUsageData] = useState({ amount: '', title: '', date: new Date().toISOString().split('T')[0] });
 
   const handleAddCard = (e) => {
     e.preventDefault();
-    if (!formData.bank || !formData.limit) return;
-    onAddCard({ ...formData, limit: parseFloat(formData.limit), used: 0, transactions: [] });
+    if (!formData.bank || !formData.credit_limit) return;
+    
+    // Remove 'transactions' as it doesn't exist in Supabase schema
+    const { ...cardData } = formData;
+    
+    onAddCard({ 
+      ...cardData, 
+      credit_limit: parseFloat(formData.credit_limit), 
+      used: 0,
+      due_date_day: formData.due_date_day ? parseInt(formData.due_date_day) : null
+    });
+    
     setIsAdding(false);
-    setFormData({ bank: '', limit: '', lastFour: '', dueDate: '15' });
+    setFormData({ bank: '', credit_limit: '', last_four: '', due_date_day: '15' });
   };
 
   const handleAddUsageSubmit = (cardId) => {
@@ -50,15 +60,15 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Card Last 4 Digits</label>
-              <input placeholder="1234" maxLength="4" value={formData.lastFour} onChange={e => setFormData({...formData, lastFour: e.target.value})} />
+              <input placeholder="1234" maxLength="4" value={formData.last_four} onChange={e => setFormData({...formData, last_four: e.target.value})} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Credit Limit (₹)</label>
-              <input type="number" placeholder="50000" value={formData.limit} onChange={e => setFormData({...formData, limit: e.target.value})} required />
+              <input type="number" placeholder="50000" value={formData.credit_limit} onChange={e => setFormData({...formData, credit_limit: e.target.value})} required />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Statement Date (Day of Month)</label>
-              <input type="number" min="1" max="31" value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} />
+              <input type="number" min="1" max="31" value={formData.due_date_day} onChange={e => setFormData({...formData, due_date_day: e.target.value})} />
             </div>
             <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-ghost" onClick={() => setIsAdding(false)}>Cancel</button>
@@ -70,7 +80,7 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
         {cards.map(card => {
-          const usedPercentage = (card.used / card.limit) * 100;
+          const usedPercentage = (card.used / card.credit_limit) * 100;
           return (
             <div key={card.id} className="glass-card" style={{ 
               background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
@@ -85,7 +95,7 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h4 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{card.bank}</h4>
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>•••• •••• •••• {card.lastFour || 'XXXX'}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>•••• •••• •••• {card.last_four || 'XXXX'}</p>
                 </div>
                 <CardIcon size={32} style={{ opacity: 0.8, color: 'white' }} />
               </div>

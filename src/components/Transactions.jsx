@@ -8,7 +8,13 @@ import {
   Trash2,
   Calendar,
   Tag,
-  FileText
+  FileText,
+  ChevronUp,
+  ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const TRANSACTION_CATEGORIES = {
@@ -28,6 +34,13 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
     notes: '' 
   });
 
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.title || !formData.amount) return;
@@ -39,9 +52,48 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
     });
   };
 
-  const filteredTransactions = transactions.filter(t => 
-    filterType === 'all' ? true : t.type === filterType
-  ).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const handleSort = (key) => {
+    let direction = 'desc';
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredTransactions = transactions
+    .filter(t => filterType === 'all' ? true : t.type === filterType)
+    .sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (sortConfig.key === 'amount') {
+        const diff = parseFloat(aValue) - parseFloat(bValue);
+        return sortConfig.direction === 'asc' ? diff : -diff;
+      }
+      
+      if (sortConfig.key === 'date') {
+        const diff = new Date(aValue) - new Date(bValue);
+        return sortConfig.direction === 'asc' ? diff : -diff;
+      }
+      
+      // Default string sort
+      const stringA = String(aValue).toLowerCase();
+      const stringB = String(bValue).toLowerCase();
+      if (stringA < stringB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (stringA > stringB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+  // Pagination Logic
+  const totalItems = filteredTransactions.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return <ChevronUp size={14} style={{ opacity: 0.3 }} />;
+    return sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -127,15 +179,31 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-              <th style={{ padding: '1rem' }}>Transaction</th>
-              <th style={{ padding: '1rem' }}>Category</th>
-              <th style={{ padding: '1rem' }}>Date</th>
-              <th style={{ padding: '1rem', textAlign: 'right' }}>Amount</th>
+              <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => handleSort('title')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Transaction {getSortIcon('title')}
+                </div>
+              </th>
+              <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => handleSort('category')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Category {getSortIcon('category')}
+                </div>
+              </th>
+              <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => handleSort('date')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Date {getSortIcon('date')}
+                </div>
+              </th>
+              <th style={{ padding: '1rem', textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('amount')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  Amount {getSortIcon('amount')}
+                </div>
+              </th>
               <th style={{ padding: '1rem', textAlign: 'right' }}>Action</th>
             </tr>
           </thead>
           <tbody>
-            {filteredTransactions.map(tx => (
+            {paginatedTransactions.map(tx => (
               <tr key={tx.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -177,6 +245,94 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
             ))}
           </tbody>
         </table>
+
+        {/* Pagination Controls */}
+        {totalPages > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            padding: '1.5rem 1rem',
+            borderTop: '1px solid var(--border)',
+            marginTop: '0.5rem'
+          }}>
+            <div style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+              Showing {totalItems === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} entries
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button 
+                className="btn-ghost" 
+                style={{ padding: '0.4rem', borderRadius: '6px' }}
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronsLeft size={16} />
+              </button>
+              <button 
+                className="btn-ghost" 
+                style={{ padding: '0.4rem', borderRadius: '6px' }}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {[...Array(totalPages)].map((_, i) => {
+                  const pageNum = i + 1;
+                  // Show only current page, 1, last page, and neighbors
+                  if (pageNum === 1 || pageNum === totalPages || Math.abs(pageNum - currentPage) <= 1) {
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: currentPage === pageNum ? 'var(--primary)' : 'transparent',
+                          color: currentPage === pageNum ? 'white' : 'var(--text-main)',
+                          fontWeight: currentPage === pageNum ? 700 : 400
+                        }}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  }
+                  if (pageNum === 2 || pageNum === totalPages - 1) {
+                    return <span key={pageNum} style={{ color: 'var(--text-dim)' }}>...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button 
+                className="btn-ghost" 
+                style={{ padding: '0.4rem', borderRadius: '6px' }}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button 
+                className="btn-ghost" 
+                style={{ padding: '0.4rem', borderRadius: '6px' }}
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {filteredTransactions.length === 0 && (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-dim)' }}>
             <FileText size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />

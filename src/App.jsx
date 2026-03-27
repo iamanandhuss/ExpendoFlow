@@ -85,11 +85,13 @@ function App() {
     const { id, ...txData } = tx;
     const { data, error } = await supabase.from('transactions').insert([{ ...txData, user_id: session.user.id }]).select();
     if (data) setTransactions([data[0], ...transactions]);
+    if (error) console.error('Error adding transaction:', error);
   };
 
   const deleteTransaction = async (id) => {
     const { error } = await supabase.from('transactions').delete().eq('id', id);
     if (!error) setTransactions(transactions.filter(t => t.id !== id));
+    else console.error('Error deleting transaction:', error);
   };
 
   const addDebt = async (debt) => {
@@ -108,6 +110,7 @@ function App() {
         date: newDebt.date
       });
     }
+    if (error) console.error('Error adding debt:', error);
   };
 
   const updateDebt = async (id, updates) => {
@@ -127,6 +130,7 @@ function App() {
         });
       }
     }
+    if (error) console.error('Error updating debt:', error);
   };
 
   const deleteDebt = async (id) => {
@@ -138,11 +142,12 @@ function App() {
     const { id, ...cardData } = card;
     const { data, error } = await supabase.from('credit_cards').insert([{ ...cardData, user_id: session.user.id }]).select();
     if (data) setCards([data[0], ...cards]);
+    if (error) console.error('Error adding card:', error);
   };
 
   const updateCardUsage = async (cardId, usage) => {
     const card = cards.find(c => c.id === cardId);
-    const newUsed = card.used + usage.amount;
+    const newUsed = parseFloat(card.used) + parseFloat(usage.amount);
     const { data, error } = await supabase.from('credit_cards').update({ used: newUsed }).eq('id', cardId).select();
     if (data) {
       setCards(cards.map(c => c.id === cardId ? data[0] : c));

@@ -14,14 +14,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 const DebtManager = ({ debts, onAddDebt, onUpdateDebt, onDeleteDebt }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [type, setType] = useState('give'); // 'give' (receivable) or 'take' (payable)
-  const [formData, setFormData] = useState({ person: '', amount: '', date: new Date().toISOString().split('T')[0], dueDate: '', notes: '' });
+  const [formData, setFormData] = useState({ person: '', amount: '', date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.person || !formData.amount) return;
-    onAddDebt({ ...formData, type, status: 'pending', remaining: parseFloat(formData.amount) });
+    
+    // Prepare data - ensure empty dates are null for PostgreSQL
+    const debtToSave = {
+      ...formData,
+      due_date: formData.due_date || null,
+      type,
+      status: 'pending',
+      remaining: parseFloat(formData.amount)
+    };
+    
+    onAddDebt(debtToSave);
     setIsAdding(false);
-    setFormData({ person: '', amount: '', date: new Date().toISOString().split('T')[0], dueDate: '', notes: '' });
+    setFormData({ person: '', amount: '', date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
   };
 
   const totals = debts.reduce((acc, debt) => {
