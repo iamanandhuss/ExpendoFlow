@@ -73,37 +73,39 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
           const usedPercentage = (card.used / card.limit) * 100;
           return (
             <div key={card.id} className="glass-card" style={{ 
-              background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.7) 0%, rgba(10, 15, 30, 0.9) 100%)',
+              background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
               padding: '1.5rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '1.5rem',
-              minHeight: '220px'
+              minHeight: '220px',
+              color: 'white',
+              boxShadow: '0 20px 25px -5px var(--primary-glow)'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h4 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{card.bank}</h4>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>•••• •••• •••• {card.lastFour || 'XXXX'}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>•••• •••• •••• {card.lastFour || 'XXXX'}</p>
                 </div>
-                <CardIcon size={32} style={{ opacity: 0.5, color: 'var(--primary)' }} />
+                <CardIcon size={32} style={{ opacity: 0.8, color: 'white' }} />
               </div>
 
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Utilized: ₹{parseFloat(card.used).toLocaleString()}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.8)' }}>Utilized: ₹{parseFloat(card.used).toLocaleString()}</span>
                   <span style={{ fontWeight: 600 }}>₹{parseFloat(card.credit_limit).toLocaleString()}</span>
                 </div>
-                <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ height: '8px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', overflow: 'hidden' }}>
                   <div style={{ 
                     height: '100%', 
                     width: `${Math.min((parseFloat(card.used) / parseFloat(card.credit_limit)) * 100, 100)}%`, 
-                    background: (parseFloat(card.used) / parseFloat(card.credit_limit)) * 100 > 80 ? 'var(--expense)' : 'var(--primary)',
-                    boxShadow: (parseFloat(card.used) / parseFloat(card.credit_limit)) * 100 > 80 ? '0 0 10px var(--expense-glow)' : '0 0 10px var(--primary-glow)',
+                    background: (parseFloat(card.used) / parseFloat(card.credit_limit)) * 100 > 80 ? '#fbbf24' : 'white',
+                    boxShadow: '0 0 10px rgba(255,255,255,0.5)',
                     transition: 'width 1s ease-out'
                   }} />
                 </div>
                 {(parseFloat(card.used) / parseFloat(card.credit_limit)) * 100 > 80 && (
-                  <p style={{ fontSize: '0.7rem', color: 'var(--expense)', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <p style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <AlertCircle size={10} /> High credit utilization!
                   </p>
                 )}
@@ -111,18 +113,18 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }} onClick={() => setIsAddingUsage(card.id)}>
+                  <button className="btn btn-ghost" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', borderColor: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)' }} onClick={() => setIsAddingUsage(card.id)}>
                     Add Spend
                   </button>
                   <button 
                     className="btn btn-ghost" 
-                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}
+                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', borderColor: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)' }}
                     onClick={() => onAddPayment(card.id, card.used)}
                   >
                     Pay Due
                   </button>
                 </div>
-                <button className="btn-ghost" style={{ border: 'none', color: 'var(--expense)', padding: '0.4rem' }} onClick={() => onDeleteCard(card.id)}>
+                <button className="btn-ghost" style={{ border: 'none', color: 'rgba(255,255,255,0.8)', padding: '0.4rem' }} onClick={() => onDeleteCard(card.id)}>
                   <Trash2 size={16} />
                 </button>
               </div>

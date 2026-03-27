@@ -172,7 +172,7 @@ function App() {
   if (loading && transactions.length === 0) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-dark)' }}>
-        <Loader2 className="animate-spin" size={48} color="var(--primary)" />
+        <Loader2 className="animate-spin" size={48} style={{ color: 'var(--primary)' }} />
       </div>
     );
   }
@@ -194,8 +194,9 @@ function App() {
       }}>
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '3rem' }}>
           <div style={{ 
-            width: '40px', height: '40px', background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-            borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            width: '40px', height: '40px', background: 'var(--primary)',
+            borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px var(--primary-glow)'
           }}>
             <Wallet size={24} color="white" />
           </div>
@@ -216,9 +217,9 @@ function App() {
           ))}
         </nav>
 
-        <div className="user-profile glass-card" style={{ padding: '1rem', marginTop: '2rem' }}>
+        <div className="user-profile glass-card" style={{ padding: '1rem', marginTop: '2rem', background: 'white', borderColor: 'var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
               <User size={18} />
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
@@ -261,7 +262,7 @@ function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'dashboard' && <Dashboard totals={totals} latestTransactions={transactions.slice(0, 5)} />}
+            {activeTab === 'dashboard' && <Dashboard totals={totals} latestTransactions={transactions.slice(0, 5)} allTransactions={transactions} />}
             {activeTab === 'transactions' && <Transactions transactions={transactions} onAddTransaction={addTransaction} onDeleteTransaction={deleteTransaction} />}
             {activeTab === 'debts' && <DebtManager debts={debts} onAddDebt={addDebt} onUpdateDebt={updateDebt} onDeleteDebt={deleteDebt} />}
             {activeTab === 'cards' && <CreditCards cards={cards} onAddCard={addCard} onAddUsage={updateCardUsage} onAddPayment={addCardPayment} onDeleteCard={deleteCard} />}

@@ -1,32 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-dark: #0a0b10;
-  --bg-card: rgba(255, 255, 255, 0.04);
-  --bg-card-hover: rgba(255, 255, 255, 0.08);
+  --bg-dark: #EDF1F5; /* New Light Background */
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-card-hover: rgba(255, 255, 255, 0.9);
   
-  --primary: #6366f1;
-  --primary-glow: rgba(99, 102, 241, 0.4);
-  --secondary: #a855f7;
+  --primary: #0145F2; /* New Vibrant Blue */
+  --primary-glow: rgba(1, 69, 242, 0.15);
+  --secondary: #2563eb;
   
-  --income: #10b981;
-  --income-glow: rgba(16, 185, 129, 0.3);
-  --expense: #f43f5e;
-  --expense-glow: rgba(244, 63, 94, 0.3);
-  --debt: #f59e0b;
-  --debt-glow: rgba(245, 158, 11, 0.3);
+  --income: #059669;
+  --income-glow: rgba(5, 150, 105, 0.1);
+  --expense: #dc2626;
+  --expense-glow: rgba(220, 38, 38, 0.1);
+  --debt: #d97706;
+  --debt-glow: rgba(217, 119, 6, 0.1);
   
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  --text-main: #0f172a;
+  --text-muted: #475569;
   --text-dim: #64748b;
   
-  --border: rgba(255, 255, 255, 0.08);
+  --border: rgba(0, 0, 0, 0.05);
   --radius-lg: 1.25rem;
   --radius-md: 0.75rem;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
-  --glass-bg: rgba(15, 17, 26, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.5);
 }
 
 * {
@@ -88,12 +88,13 @@ body {
   border: none;
   font-size: 0.95rem;
   text-decoration: none;
-  color: white;
+  color: var(--text-main);
 }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   box-shadow: 0 4px 20px var(--primary-glow);
+  color: white;
 }
 
 .btn-primary:hover {
@@ -126,11 +127,11 @@ body {
 
 input, select, textarea {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
+  background: white;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
-  color: white;
+  color: var(--text-main);
   outline: none;
   transition: var(--transition);
 }
@@ -142,7 +143,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #fff 30%, var(--primary) 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }

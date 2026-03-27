@@ -19,17 +19,37 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const mockChartData = [
-  { name: 'Mon', income: 4000, expense: 2400 },
-  { name: 'Tue', income: 3000, expense: 1398 },
-  { name: 'Wed', income: 2000, expense: 9800 },
-  { name: 'Thu', income: 2780, expense: 3908 },
-  { name: 'Fri', income: 1890, expense: 4800 },
-  { name: 'Sat', income: 2390, expense: 3800 },
-  { name: 'Sun', income: 3490, expense: 4300 },
-];
+const Dashboard = ({ totals, latestTransactions, allTransactions = [] }) => {
+  // Process chart data from real transactions
+  const getChartData = () => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const last7Days = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      last7Days.push({
+        date: d.toISOString().split('T')[0],
+        name: days[d.getDay()],
+        income: 0,
+        expense: 0
+      });
+    }
 
-const Dashboard = ({ totals, latestTransactions }) => {
+    allTransactions.forEach(tx => {
+      const txDate = tx.date;
+      const dayData = last7Days.find(d => d.date === txDate);
+      if (dayData) {
+        if (tx.type === 'income') dayData.income += parseFloat(tx.amount);
+        else dayData.expense += parseFloat(tx.amount);
+      }
+    });
+
+    return last7Days;
+  };
+
+  const chartData = getChartData();
+
   const stats = [
     { label: 'Available Balance', value: `₹${totals.balance.toLocaleString()}`, icon: Wallet, color: 'var(--primary)', glow: 'var(--primary-glow)' },
     { label: 'Total Income', value: `₹${totals.income.toLocaleString()}`, icon: TrendingUp, color: 'var(--income)', glow: 'var(--income-glow)' },
@@ -90,7 +110,7 @@ const Dashboard = ({ totals, latestTransactions }) => {
           </div>
           <div style={{ flex: 1, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--income)" stopOpacity={0.3}/>
@@ -101,7 +121,7 @@ const Dashboard = ({ totals, latestTransactions }) => {
                     <stop offset="95%" stopColor="var(--expense)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" vertical={false} />
                 <XAxis 
                   dataKey="name" 
                   stroke="var(--text-dim)" 
@@ -114,15 +134,15 @@ const Dashboard = ({ totals, latestTransactions }) => {
                   fontSize={12} 
                   tickLine={false} 
                   axisLine={false}
-                  tickFormatter={(value) => `₹${value/1000}k`}
+                  tickFormatter={(value) => value >= 1000 ? `₹${value/1000}k` : `₹${value}`}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    background: 'var(--glass-bg)', 
+                    background: 'white', 
                     borderColor: 'var(--border)',
                     borderRadius: '12px',
-                    backdropFilter: 'blur(10px)',
-                    color: 'white'
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                    color: 'var(--text-main)'
                   }} 
                 />
                 <Area type="monotone" dataKey="income" stroke="var(--income)" fillOpacity={1} fill="url(#colorIncome)" strokeWidth={2} />
@@ -144,7 +164,7 @@ const Dashboard = ({ totals, latestTransactions }) => {
                   width: '40px', 
                   height: '40px', 
                   borderRadius: '10px', 
-                  background: 'rgba(255,255,255,0.05)',
+                  background: '#f1f5f9',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -170,13 +190,13 @@ const Dashboard = ({ totals, latestTransactions }) => {
             )}
           </div>
 
-          <div className="glass-card" style={{ marginTop: '2rem', background: 'var(--bg-card-hover)', border: 'none' }}>
+          <div className="glass-card" style={{ marginTop: '2rem', background: 'white', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
                 <Clock size={16} />
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                 Payable Total: <span style={{ color: 'white', fontWeight: 600 }}>₹{totals.payable.toLocaleString()}</span>
+                 Payable Total: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>₹{totals.payable.toLocaleString()}</span>
               </p>
             </div>
           </div>

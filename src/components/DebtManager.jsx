@@ -141,7 +141,7 @@ const DebtManager = ({ debts, onAddDebt, onUpdateDebt, onDeleteDebt }) => {
                 width: '45px', 
                 height: '45px', 
                 borderRadius: '12px', 
-                background: 'rgba(255,255,255,0.05)',
+                background: '#f8fafc',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

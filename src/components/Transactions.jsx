@@ -136,7 +136,7 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
           </thead>
           <tbody>
             {filteredTransactions.map(tx => (
-              <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+              <tr key={tx.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ 
