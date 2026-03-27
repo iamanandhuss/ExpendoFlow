@@ -26,6 +26,7 @@ import Auth from './components/auth/Auth';
 
 function App() {
   const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +48,7 @@ function App() {
       setSession(session);
       if (session) fetchAllData(session.user.id);
       else {
+        setProfile(null);
         setTransactions([]);
         setDebts([]);
         setCards([]);
@@ -60,12 +62,14 @@ function App() {
   const fetchAllData = async (userId) => {
     setLoading(true);
     try {
-      const [txRes, debtRes, cardRes] = await Promise.all([
+      const [profileRes, txRes, debtRes, cardRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
         supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
         supabase.from('debts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('credit_cards').select('*').eq('user_id', userId).order('created_at', { ascending: false })
       ]);
 
+      if (profileRes.data) setProfile(profileRes.data);
       if (txRes.data) setTransactions(txRes.data);
       if (debtRes.data) setDebts(debtRes.data);
       if (cardRes.data) setCards(cardRes.data);
@@ -133,6 +137,12 @@ function App() {
   const deleteCard = async (id) => {
     const { error } = await supabase.from('credit_cards').delete().eq('id', id);
     if (!error) setCards(cards.filter(c => c.id !== id));
+  };
+
+  const updateProfile = async (updates) => {
+    const { data, error } = await supabase.from('profiles').update(updates).eq('id', session.user.id).select().single();
+    if (data) setProfile(data);
+    return { data, error };
   };
 
   const calculateTotals = () => {
@@ -212,7 +222,9 @@ function App() {
               <User size={18} />
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
-              <p style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{session.user.email.split('@')[0]}</p>
+              <p style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                {profile?.full_name || session.user.email.split('@')[0]}
+              </p>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Sync Active</p>
             </div>
             <button onClick={() => supabase.auth.signOut()} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>
@@ -255,13 +267,33 @@ function App() {
             {activeTab === 'cards' && <CreditCards cards={cards} onAddCard={addCard} onAddUsage={updateCardUsage} onAddPayment={addCardPayment} onDeleteCard={deleteCard} />}
             
             {activeTab === 'settings' && (
-              <div className="glass-card" style={{ textAlign: 'center', padding: '5rem 0' }}>
-                <SettingsIcon size={48} style={{ color: 'var(--text-dim)', marginBottom: '1rem' }} />
-                <h3>Settings</h3>
-                <p style={{ color: 'var(--text-muted)' }}>Account: {session.user.email}</p>
-                <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                    <button className="btn btn-primary" onClick={() => supabase.auth.signOut()}>Logout</button>
-                    <button className="btn btn-ghost" onClick={() => fetchAllData(session.user.id)}>Refresh Sync</button>
+              <div className="glass-card" style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                    <User size={40} color="var(--primary)" />
+                  </div>
+                  <h3>Account Settings</h3>
+                  <p style={{ color: 'var(--text-muted)' }}>{session.user.email}</p>
+                </div>
+
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const name = e.target.display_name.value;
+                  const { error } = await updateProfile({ full_name: name });
+                  if (!error) alert('Profile updated!');
+                }} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.9rem', color: 'var(--text-dim)' }}>Display Name</label>
+                    <input type="text" name="display_name" defaultValue={profile?.full_name} placeholder="Your full name" />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Update Profile</button>
+                    <button type="button" className="btn btn-ghost" onClick={() => supabase.auth.signOut()}>Sign Out</button>
+                  </div>
+                </form>
+                
+                <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                    <button className="btn btn-ghost" style={{ color: 'var(--error)' }} onClick={() => fetchAllData(session.user.id)}>Force Sync Refresh</button>
                 </div>
               </div>
             )}

@@ -8,6 +8,7 @@ const Auth = ({ onAuthSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState(null);
 
   const handleAuth = async (e) => {
@@ -20,7 +21,15 @@ const Auth = ({ onAuthSuccess }) => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: {
+              full_name: fullName
+            }
+          }
+        });
         if (error) throw error;
         alert('Check your email for the confirmation link!');
       }
@@ -57,6 +66,19 @@ const Auth = ({ onAuthSuccess }) => {
         </div>
 
         <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {!isLogin && (
+            <div style={{ position: 'relative' }}>
+              <User size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                style={{ paddingLeft: '3rem' }} 
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required 
+              />
+            </div>
+          )}
           <div style={{ position: 'relative' }}>
             <Mail size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
             <input 
