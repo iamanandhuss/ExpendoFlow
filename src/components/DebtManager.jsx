@@ -13,6 +13,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const DebtManager = ({ debts, onAddDebt, onUpdateDebt, onDeleteDebt }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [payingDebtId, setPayingDebtId] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [type, setType] = useState('give'); // 'give' (receivable) or 'take' (payable)
   const [formData, setFormData] = useState({ person: '', amount: '', date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
 
@@ -140,68 +142,139 @@ const DebtManager = ({ debts, onAddDebt, onUpdateDebt, onDeleteDebt }) => {
           </div>
         ) : (
           debts.map((debt) => (
-            <div key={debt.id} className="glass-card" style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '1.5rem', 
-              padding: '1.25rem 1.5rem',
-              borderLeft: `4px solid ${debt.type === 'give' ? 'var(--income)' : 'var(--expense)'}`
-            }}>
-              <div style={{ 
-                width: '45px', 
-                height: '45px', 
-                borderRadius: '12px', 
-                background: '#f8fafc',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: debt.type === 'give' ? 'var(--income)' : 'var(--expense)'
+            <div key={debt.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="glass-card" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '1.5rem', 
+                padding: '1.25rem 1.5rem',
+                borderLeft: `4px solid ${debt.type === 'give' ? 'var(--income)' : 'var(--expense)'}`
               }}>
-                {debt.type === 'give' ? <ArrowUpRight size={22} /> : <ArrowDownLeft size={22} />}
-              </div>
-              
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <h4 style={{ fontWeight: 600 }}>{debt.person}</h4>
-                  <span className={`status-badge ${debt.status === 'completed' ? 'status-income' : 'status-debt'}`} style={{ fontSize: '0.7rem' }}>
-                    {debt.status}
-                  </span>
+                <div style={{ 
+                  width: '45px', 
+                  height: '45px', 
+                  borderRadius: '12px', 
+                  background: '#f8fafc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: debt.type === 'give' ? 'var(--income)' : 'var(--expense)'
+                }}>
+                  {debt.type === 'give' ? <ArrowUpRight size={22} /> : <ArrowDownLeft size={22} />}
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <Calendar size={12} /> {debt.date}
-                  </span>
-                  {debt.type === 'give' ? (
-                    <span style={{ color: 'var(--income)' }}>Receivable</span>
-                  ) : (
-                    <span style={{ color: 'var(--expense)' }}>Payable</span>
+                
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h4 style={{ fontWeight: 600 }}>{debt.person}</h4>
+                    <span className={`status-badge ${debt.status === 'completed' ? 'status-income' : 'status-debt'}`} style={{ fontSize: '0.7rem' }}>
+                      {debt.status}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Calendar size={12} /> {debt.date}
+                    </span>
+                    {debt.type === 'give' ? (
+                      <span style={{ color: 'var(--income)' }}>Receivable</span>
+                    ) : (
+                      <span style={{ color: 'var(--expense)' }}>Payable</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Remaining</p>
+                  <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>₹{parseFloat(debt.remaining).toLocaleString()}</p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {debt.status !== 'completed' && (
+                    <>
+                      <button 
+                        className="btn btn-ghost" 
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', border: '1px solid var(--border)' }}
+                        onClick={() => {
+                          setPayingDebtId(payingDebtId === debt.id ? null : debt.id);
+                          setPaymentAmount('');
+                        }}
+                      >
+                        Partial
+                      </button>
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
+                        onClick={() => onUpdateDebt(debt.id, { status: 'completed' })}
+                      >
+                        {debt.type === 'give' ? 'Full Recv' : 'Full Pay'}
+                      </button>
+                    </>
                   )}
+                  <button 
+                    className="btn-ghost" 
+                    style={{ padding: '0.5rem', borderRadius: '8px', border: 'none', color: 'var(--expense)' }}
+                    onClick={() => onDeleteDebt(debt.id)}
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Remaining</p>
-                <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>₹{parseFloat(debt.remaining).toLocaleString()}</p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {debt.status !== 'completed' && (
-                  <button 
-                    className="btn btn-primary" 
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
-                    onClick={() => onUpdateDebt(debt.id, { remaining: 0, status: 'completed' })}
+              {/* Partial Payment Input Area */}
+              <AnimatePresence>
+                {payingDebtId === debt.id && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    style={{ overflow: 'hidden' }}
                   >
-                    {debt.type === 'give' ? 'Received' : 'Repaid'}
-                  </button>
+                    <div className="glass-card" style={{ 
+                      margin: '0 1rem 1rem', 
+                      padding: '1rem', 
+                      background: 'var(--bg-card-hover)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
+                      border: '1px dashed var(--primary)'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>
+                          Amount to {debt.type === 'give' ? 'Receive' : 'Repay'}
+                        </label>
+                        <input 
+                          type="number"
+                          placeholder="Enter amount"
+                          value={paymentAmount}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          max={debt.remaining}
+                          style={{ background: 'white' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignSelf: 'flex-end' }}>
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
+                          onClick={() => {
+                            if (paymentAmount && parseFloat(paymentAmount) > 0) {
+                              onUpdateDebt(debt.id, {}, parseFloat(paymentAmount));
+                              setPayingDebtId(null);
+                            }
+                          }}
+                        >
+                          Confirm
+                        </button>
+                        <button 
+                          className="btn btn-ghost" 
+                          style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
+                          onClick={() => setPayingDebtId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
-                <button 
-                  className="btn-ghost" 
-                  style={{ padding: '0.5rem', borderRadius: '8px', border: 'none', color: 'var(--expense)' }}
-                  onClick={() => onDeleteDebt(debt.id)}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
+              </AnimatePresence>
             </div>
           ))
         )}

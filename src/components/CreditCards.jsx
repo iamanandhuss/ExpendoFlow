@@ -11,11 +11,18 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const TRANSACTION_CATEGORIES = {
+  income: ['Salary', 'Freelance', 'Investment', 'Gift', 'Debt', 'Other'],
+  expense: ['Food', 'Travel', 'Rent', 'EMI', 'Shopping', 'Health', 'Entertainment', 'Personal', 'Debt', 'Credit Card', 'Other']
+};
+
 const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingUsage, setIsAddingUsage] = useState(null); // card id
+  const [isAddingPayment, setIsAddingPayment] = useState(null); // card id
   const [formData, setFormData] = useState({ bank: '', credit_limit: '', last_four: '', due_date_day: '15' });
   const [usageData, setUsageData] = useState({ amount: '', title: '', date: new Date().toISOString().split('T')[0] });
+  const [paymentAmount, setPaymentAmount] = useState('');
 
   const handleAddCard = (e) => {
     e.preventDefault();
@@ -40,6 +47,13 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
     onAddUsage(cardId, { ...usageData, amount: parseFloat(usageData.amount) });
     setIsAddingUsage(null);
     setUsageData({ amount: '', title: '', date: new Date().toISOString().split('T')[0] });
+  };
+
+  const handleAddPaymentSubmit = (cardId) => {
+    if (!paymentAmount) return;
+    onAddPayment(cardId, parseFloat(paymentAmount));
+    setIsAddingPayment(null);
+    setPaymentAmount('');
   };
 
   return (
@@ -129,7 +143,10 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
                   <button 
                     className="btn btn-ghost" 
                     style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', borderColor: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)' }}
-                    onClick={() => onAddPayment(card.id, card.used)}
+                    onClick={() => {
+                      setIsAddingPayment(card.id);
+                      setPaymentAmount(card.used.toString());
+                    }}
                   >
                     Pay Due
                   </button>
@@ -147,23 +164,103 @@ const CreditCards = ({ cards, onAddCard, onAddUsage, onAddPayment, onDeleteCard 
                     exit={{ opacity: 0, height: 0 }}
                     style={{ overflow: 'hidden' }}
                   >
-                    <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                      <input 
-                        placeholder="Spend Title (e.g. Amazon)" 
-                        style={{ padding: '0.5rem', fontSize: '0.85rem' }}
-                        value={usageData.title}
-                        onChange={e => setUsageData({...usageData, title: e.target.value})}
-                      />
-                      <input 
-                        type="number" 
-                        placeholder="Amount" 
-                        style={{ padding: '0.5rem', fontSize: '0.85rem' }}
-                        value={usageData.amount}
-                        onChange={e => setUsageData({...usageData, amount: e.target.value})}
-                      />
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-primary" style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => handleAddUsageSubmit(card.id)}>Add</button>
-                        <button className="btn btn-ghost" style={{ flex: 1, fontSize: '0.75rem' }} onClick={() => setIsAddingUsage(null)}>Cancel</button>
+                    <div style={{ 
+                      paddingTop: '1.25rem', 
+                      marginTop: '1rem',
+                      borderTop: '1px solid rgba(255,255,255,0.2)', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '1rem' 
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.75rem', opacity: 0.8 }}>Spend Description</label>
+                        <input 
+                          placeholder="e.g. Amazon Shopping" 
+                          style={{ 
+                            padding: '0.6rem 0.8rem', 
+                            fontSize: '0.85rem', 
+                            background: 'rgba(255,255,255,0.1)', 
+                            border: '1px solid rgba(255,255,255,0.2)', 
+                            borderRadius: '8px',
+                            color: 'white',
+                            outline: 'none'
+                          }}
+                          value={usageData.title}
+                          onChange={e => setUsageData({...usageData, title: e.target.value})}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.75rem', opacity: 0.8 }}>Amount (₹)</label>
+                        <input 
+                          type="number" 
+                          placeholder="0.00" 
+                          style={{ 
+                            padding: '0.6rem 0.8rem', 
+                            fontSize: '0.85rem', 
+                            background: 'rgba(255,255,255,0.1)', 
+                            border: '1px solid rgba(255,255,255,0.2)', 
+                            borderRadius: '8px',
+                            color: 'white',
+                            outline: 'none'
+                          }}
+                          value={usageData.amount}
+                          onChange={e => setUsageData({...usageData, amount: e.target.value})}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        <button className="btn btn-primary" style={{ flex: 1, height: '2.5rem', fontSize: '0.8rem', background: 'white', color: 'var(--primary)', border: 'none' }} onClick={() => handleAddUsageSubmit(card.id)}>
+                          Add Spend
+                        </button>
+                        <button className="btn btn-ghost" style={{ flex: 1, height: '2.5rem', fontSize: '0.8rem', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }} onClick={() => setIsAddingUsage(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {isAddingPayment === card.id && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <div style={{ 
+                      paddingTop: '1.25rem', 
+                      marginTop: '1rem',
+                      borderTop: '1px solid rgba(255,255,255,0.2)', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '1rem' 
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.75rem', opacity: 0.8 }}>Payment Amount (₹)</label>
+                        <input 
+                          type="number" 
+                          placeholder="0.00" 
+                          style={{ 
+                            padding: '0.6rem 0.8rem', 
+                            fontSize: '0.85rem', 
+                            background: 'rgba(255,255,255,0.1)', 
+                            border: '1px solid rgba(255,255,255,0.2)', 
+                            borderRadius: '8px',
+                            color: 'white',
+                            outline: 'none'
+                          }}
+                          value={paymentAmount}
+                          onChange={e => setPaymentAmount(e.target.value)}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        <button className="btn btn-primary" style={{ flex: 1, height: '2.5rem', fontSize: '0.8rem', background: 'white', color: 'var(--primary)', border: 'none' }} onClick={() => handleAddPaymentSubmit(card.id)}>
+                          Confirm Payment
+                        </button>
+                        <button className="btn btn-ghost" style={{ flex: 1, height: '2.5rem', fontSize: '0.8rem', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }} onClick={() => setIsAddingPayment(null)}>
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   </motion.div>

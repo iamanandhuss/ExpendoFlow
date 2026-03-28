@@ -113,22 +113,39 @@ function App() {
     if (error) console.error('Error adding debt:', error);
   };
 
-  const updateDebt = async (id, updates) => {
-    const { data, error } = await supabase.from('debts').update(updates).eq('id', id).select();
-    if (data) {
-      const updatedDebt = data[0];
-      setDebts(debts.map(d => d.id === id ? updatedDebt : d));
+  const updateDebt = async (id, updates, paymentAmount = null) => {
+    // If it's a partial payment, we calculate the new remaining
+    let finalUpdates = { ...updates };
+    const debt = debts.find(d => d.id === id);
+    
+    if (paymentAmount) {
+      const newRemaining = Math.max(0, parseFloat(debt.remaining) - parseFloat(paymentAmount));
+      finalUpdates.remaining = newRemaining;
+      if (newRemaining <= 0) finalUpdates.status = 'completed';
+      
+      // Create transaction for this partial payment
+      addTransaction({
+        title: debt.type === 'give' ? `Partial Receipt from ${debt.person}` : `Partial Repayment to ${debt.person}`,
+        amount: paymentAmount,
+        type: debt.type === 'give' ? 'income' : 'expense',
+        category: 'Debt',
+        date: new Date().toISOString().split('T')[0]
+      });
+    } else if (updates.status === 'completed' && debt.status !== 'completed') {
+      // Full settlement if marked completed without specific paymentAmount
+      addTransaction({
+        title: debt.type === 'give' ? `Full Receipt from ${debt.person}` : `Full Repayment to ${debt.person}`,
+        amount: debt.remaining,
+        type: debt.type === 'give' ? 'income' : 'expense',
+        category: 'Debt',
+        date: new Date().toISOString().split('T')[0]
+      });
+      finalUpdates.remaining = 0;
+    }
 
-      // If marked as completed, create settlement transaction
-      if (updates.status === 'completed') {
-        addTransaction({
-          title: updatedDebt.type === 'give' ? `Debt Received from ${updatedDebt.person}` : `Debt Repaid to ${updatedDebt.person}`,
-          amount: updatedDebt.amount,
-          type: updatedDebt.type === 'give' ? 'income' : 'expense',
-          category: 'Debt',
-          date: new Date().toISOString().split('T')[0]
-        });
-      }
+    const { data, error } = await supabase.from('debts').update(finalUpdates).eq('id', id).select();
+    if (data) {
+      setDebts(debts.map(d => d.id === id ? data[0] : d));
     }
     if (error) console.error('Error updating debt:', error);
   };
@@ -165,7 +182,19 @@ function App() {
     const card = cards.find(c => c.id === cardId);
     const newUsed = Math.max(0, card.used - amount);
     const { data, error } = await supabase.from('credit_cards').update({ used: newUsed }).eq('id', cardId).select();
-    if (data) setCards(cards.map(c => c.id === cardId ? data[0] : c));
+    if (data) {
+      setCards(cards.map(c => c.id === cardId ? data[0] : c));
+      
+      // Add transaction for card payment
+      addTransaction({
+        title: `CC Payment: ${card.bank}`,
+        amount: amount,
+        type: 'expense',
+        category: 'Credit Card',
+        date: new Date().toISOString().split('T')[0]
+      });
+    }
+    if (error) console.error('Error adding card payment:', error);
   };
 
   const deleteCard = async (id) => {
