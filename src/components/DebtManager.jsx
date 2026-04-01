@@ -7,16 +7,100 @@ import {
   CheckCircle2, 
   Trash2,
   Calendar,
-  User as UserIcon
+  User as UserIcon,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-const DebtManager = ({ debts, onAddDebt, onUpdateDebt, onDeleteDebt }) => {
+const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onDeleteDebt }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [payingDebtId, setPayingDebtId] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [type, setType] = useState('give'); // 'give' (receivable) or 'take' (payable)
   const [formData, setFormData] = useState({ person: '', amount: '', date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
+
+  const downloadPDF = (debt) => {
+    try {
+      const doc = new jsPDF();
+      const paidAmount = parseFloat(debt.amount) - parseFloat(debt.remaining);
+      
+      // Filter transactions related to this debt
+      const relatedTransactions = allTransactions.filter(t => 
+        t.category === 'Debt' && t.title.toLowerCase().includes(debt.person.toLowerCase())
+      ).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(79, 70, 229); // Primary color
+      doc.text('Debt Transaction Report', 14, 22);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+      
+      // Section 1: Summary
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text('Debt Summary', 14, 45);
+      
+      const summaryData = [
+        ['Property', 'Details'],
+        ['Person/Entity', debt.person],
+        ['Type', debt.type === 'give' ? 'Receivable (You Gave)' : 'Payable (You Took)'],
+        ['Status', debt.status.toUpperCase()],
+        ['Initial Date', debt.date],
+        ['Total Amount', `INR ${parseFloat(debt.amount).toLocaleString()}`],
+        ['Total Paid', `INR ${paidAmount.toLocaleString()}`],
+        ['Remaining Balance', `INR ${parseFloat(debt.remaining).toLocaleString()}`]
+      ];
+      
+      autoTable(doc, {
+        startY: 50,
+        head: [summaryData[0]],
+        body: summaryData.slice(1),
+        theme: 'striped',
+        headStyles: { fillStyle: [79, 70, 229] },
+        margin: { left: 14, right: 14 }
+      });
+      
+      // Section 2: Transaction History
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 100;
+      doc.setFontSize(14);
+      doc.text('Transaction History', 14, finalY + 15);
+      
+      const historyData = relatedTransactions.length > 0 ? relatedTransactions.map(t => [
+        t.date,
+        t.title,
+        t.type.toUpperCase(),
+        `INR ${parseFloat(t.amount).toLocaleString()}`
+      ]) : [['-', 'No detailed transactions found', '-', '-']];
+      
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Date', 'Description', 'Type', 'Amount']],
+        body: historyData,
+        theme: 'grid',
+        headStyles: { fillStyle: [100, 116, 139] },
+        margin: { left: 14, right: 14 }
+      });
+      
+      // Footer
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      }
+      
+      doc.save(`Debt_Report_${debt.person.replace(/\s+/g, '_')}_${debt.date}.pdf`);
+    } catch (error) {
+      console.error('PDF Generation Error:', error);
+      alert('Failed to generate PDF. Please check the console for details.');
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -182,12 +266,26 @@ const DebtManager = ({ debts, onAddDebt, onUpdateDebt, onDeleteDebt }) => {
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Remaining</p>
-                  <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>₹{parseFloat(debt.remaining).toLocaleString()}</p>
+                <div style={{ textAlign: 'right', display: 'flex', gap: '1.5rem', marginRight: '1rem' }}>
+                  <div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Paid</p>
+                    <p style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--income)' }}>₹{(parseFloat(debt.amount) - parseFloat(debt.remaining)).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Remaining</p>
+                    <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>₹{parseFloat(debt.remaining).toLocaleString()}</p>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn-ghost" 
+                    style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--primary)' }}
+                    onClick={() => downloadPDF(debt)}
+                    title="Download Report"
+                  >
+                    <FileDown size={18} />
+                  </button>
                   {debt.status !== 'completed' && (
                     <>
                       <button 
