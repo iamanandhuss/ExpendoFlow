@@ -326,7 +326,7 @@ function App() {
           >
             {activeTab === 'dashboard' && <Dashboard totals={totals} latestTransactions={transactions.slice(0, 5)} allTransactions={transactions} />}
             {activeTab === 'transactions' && <Transactions transactions={transactions} onAddTransaction={addTransaction} onDeleteTransaction={deleteTransaction} />}
-            {activeTab === 'debts' && <DebtManager debts={debts} allTransactions={transactions} onAddDebt={addDebt} onUpdateDebt={updateDebt} onDeleteDebt={deleteDebt} />}
+            {activeTab === 'debts' && <DebtManager debts={debts} allTransactions={transactions} cards={cards} onAddDebt={addDebt} onUpdateDebt={updateDebt} onDeleteDebt={deleteDebt} />}
             {activeTab === 'cards' && <CreditCards cards={cards} onAddCard={addCard} onAddUsage={updateCardUsage} onAddPayment={addCardPayment} onDeleteCard={deleteCard} />}
             
             {activeTab === 'settings' && (

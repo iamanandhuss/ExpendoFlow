@@ -9,20 +9,35 @@ import {
   Calendar,
   User as UserIcon,
   FileDown,
-  Search
+  Search,
+  Filter,
+  SortDesc,
+  RotateCcw,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onDeleteDebt }) => {
+const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpdateDebt, onDeleteDebt }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [payingDebtId, setPayingDebtId] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [type, setType] = useState('give'); // 'give' (receivable) or 'take' (payable)
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('active'); // 'active' or 'completed'
-  const [formData, setFormData] = useState({ person: '', amount: '', date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ mode: 'all', status: 'all' });
+  const [sortBy, setSortBy] = useState('date-desc');
+  const [formData, setFormData] = useState({ 
+    person: '', 
+    amount: '', 
+    date: new Date().toISOString().split('T')[0], 
+    due_date: '', 
+    notes: '',
+    mode: 'Cash',
+    customMode: ''
+  });
 
   const downloadPDF = (debt) => {
     try {
@@ -109,18 +124,32 @@ const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onD
     e.preventDefault();
     if (!formData.person || !formData.amount) return;
     
+    const finalMode = formData.mode === 'Other' ? formData.customMode : formData.mode;
+    
     // Prepare data - ensure empty dates are null for PostgreSQL
     const debtToSave = {
       ...formData,
+      mode: finalMode,
       due_date: formData.due_date || null,
       type,
       status: 'pending',
       remaining: parseFloat(formData.amount)
     };
     
+    // Remove customMode from output
+    delete debtToSave.customMode;
+    
     onAddDebt(debtToSave);
     setIsAdding(false);
-    setFormData({ person: '', amount: '', date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
+    setFormData({ 
+      person: '', 
+      amount: '', 
+      date: new Date().toISOString().split('T')[0], 
+      due_date: '', 
+      notes: '',
+      mode: 'Cash',
+      customMode: ''
+    });
   };
 
   const totals = debts.reduce((acc, debt) => {
@@ -129,6 +158,31 @@ const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onD
     else acc.payable += debt.remaining;
     return acc;
   }, { receivable: 0, payable: 0 });
+
+  // Advanced Filtering and Sorting Logic
+  const processedDebts = debts
+    // 1. View Mode (Active or Completed)
+    .filter(d => viewMode === 'active' ? d.status !== 'completed' : d.status === 'completed')
+    // 2. Search
+    .filter(d => d.person.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                (d.notes && d.notes.toLowerCase().includes(searchTerm.toLowerCase())))
+    // 3. Filter by Mode
+    .filter(d => filters.mode === 'all' || d.mode === filters.mode)
+    // 4. Filter by Status (Pending/Partial)
+    .filter(d => {
+      if (filters.status === 'all') return true;
+      if (filters.status === 'partial') return parseFloat(d.remaining) < parseFloat(d.amount) && d.status !== 'completed';
+      if (filters.status === 'pending') return parseFloat(d.remaining) === parseFloat(d.amount) && d.status !== 'completed';
+      return true;
+    })
+    // 5. Sorting
+    .sort((a, b) => {
+      if (sortBy === 'date-desc') return new Date(b.date) - new Date(a.date);
+      if (sortBy === 'date-asc') return new Date(a.date) - new Date(b.date);
+      if (sortBy === 'amount-desc') return parseFloat(b.amount) - parseFloat(a.amount);
+      if (sortBy === 'amount-asc') return parseFloat(a.amount) - parseFloat(b.amount);
+      return 0;
+    });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -156,6 +210,109 @@ const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onD
             style={{ paddingLeft: '2.8rem' }}
           />
         </div>
+        
+        {/* Filter Toggle */}
+        <div style={{ position: 'relative' }}>
+          <button 
+            className={`btn ${showFilters ? 'btn-primary' : 'btn-ghost'}`} 
+            onClick={() => setShowFilters(!showFilters)}
+            style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border)' }}
+          >
+            <Filter size={18} />
+            <span>Filters</span>
+            {(filters.mode !== 'all' || filters.status !== 'all' || sortBy !== 'date-desc') && (
+              <span style={{ width: '8px', height: '8px', background: 'var(--expense)', borderRadius: '50%', position: 'absolute', top: '10px', right: '10px' }} />
+            )}
+          </button>
+
+          {/* Filter Dropdown */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="glass-card"
+                style={{ 
+                  position: 'absolute', top: '120%', right: 0, width: '320px', zIndex: 1000, 
+                  padding: '1.5rem', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', border: '1px solid var(--border)' 
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontWeight: 600 }}>Filter & Sort</h4>
+                  <button 
+                    onClick={() => {
+                      setFilters({ mode: 'all', status: 'all' });
+                      setSortBy('date-desc');
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    <RotateCcw size={12} /> Clear
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* Sorting */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Sort By</label>
+                    <select 
+                      value={sortBy} 
+                      onChange={e => setSortBy(e.target.value)}
+                      style={{ fontSize: '0.85rem' }}
+                    >
+                      <option value="date-desc">Newest First</option>
+                      <option value="date-asc">Oldest First</option>
+                      <option value="amount-desc">Amount: High to Low</option>
+                      <option value="amount-asc">Amount: Low to High</option>
+                    </select>
+                  </div>
+
+                  {/* Mode Filter */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Transaction Mode</label>
+                    <select 
+                      value={filters.mode} 
+                      onChange={e => setFilters({...filters, mode: e.target.value})}
+                      style={{ fontSize: '0.85rem' }}
+                    >
+                      <option value="all">All Modes</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      {cards.map(c => (
+                        <option key={c.id} value={`${c.bank} (*${c.last_four})`}>{c.bank} (*{c.last_four})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Status Filter */}
+                  {viewMode === 'active' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Status</label>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          className={`btn ${filters.status === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+                          onClick={() => setFilters({...filters, status: 'all'})}
+                          style={{ flex: 1, padding: '0.4rem', fontSize: '0.75rem' }}
+                        >All</button>
+                        <button 
+                          className={`btn ${filters.status === 'pending' ? 'btn-primary' : 'btn-ghost'}`}
+                          onClick={() => setFilters({...filters, status: 'pending'})}
+                          style={{ flex: 1, padding: '0.4rem', fontSize: '0.75rem' }}
+                        >Pending</button>
+                        <button 
+                          className={`btn ${filters.status === 'partial' ? 'btn-primary' : 'btn-ghost'}`}
+                          onClick={() => setFilters({...filters, status: 'partial'})}
+                          style={{ flex: 1, padding: '0.4rem', fontSize: '0.75rem' }}
+                        >Partial</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <button className="btn btn-primary" onClick={() => setIsAdding(true)}>
           <UserPlus size={18} />
           Add Debt Entry
@@ -221,6 +378,35 @@ const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onD
                   onChange={e => setFormData({...formData, date: e.target.value})}
                 />
               </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Mode of Transaction</label>
+                <select 
+                  value={formData.mode}
+                  onChange={e => setFormData({...formData, mode: e.target.value})}
+                  required
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  {cards.map(card => (
+                    <option key={card.id} value={`${card.bank} (*${card.last_four})`}>
+                      {card.bank} (*{card.last_four})
+                    </option>
+                  ))}
+                  <option value="Other">Other (Custom)</option>
+                </select>
+              </div>
+
+              {formData.mode === 'Other' && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }}>Custom Mode Name</label>
+                  <input 
+                    placeholder="e.g. GPay, Cheque, etc."
+                    value={formData.customMode}
+                    onChange={e => setFormData({...formData, customMode: e.target.value})}
+                    required={formData.mode === 'Other'}
+                  />
+                </div>
+              )}
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsAdding(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Entry</button>
@@ -285,17 +471,13 @@ const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onD
         >
           {viewMode === 'active' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {debts.filter(d => d.status !== 'completed')
-                .filter(d => d.person.toLowerCase().includes(searchTerm.toLowerCase()) || (d.notes && d.notes.toLowerCase().includes(searchTerm.toLowerCase())))
-                .length === 0 ? (
+              {processedDebts.length === 0 ? (
                 <div className="glass-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)', borderStyle: 'dashed' }}>
                   <Clock size={40} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-                  <p>{searchTerm ? 'No active debts match your search.' : 'No active debts found.'}</p>
+                  <p>{(searchTerm || filters.mode !== 'all' || filters.status !== 'all') ? 'No active debts match your filters.' : 'No active debts found.'}</p>
                 </div>
               ) : (
-                debts.filter(d => d.status !== 'completed')
-                  .filter(d => d.person.toLowerCase().includes(searchTerm.toLowerCase()) || (d.notes && d.notes.toLowerCase().includes(searchTerm.toLowerCase())))
-                  .map((debt) => (
+                processedDebts.map((debt) => (
                     <DebtCard 
                       key={debt.id} 
                       debt={debt} 
@@ -312,17 +494,13 @@ const DebtManager = ({ debts, allTransactions = [], onAddDebt, onUpdateDebt, onD
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {debts.filter(d => d.status === 'completed')
-                .filter(d => d.person.toLowerCase().includes(searchTerm.toLowerCase()) || (d.notes && d.notes.toLowerCase().includes(searchTerm.toLowerCase())))
-                .length === 0 ? (
+              {processedDebts.length === 0 ? (
                 <div className="glass-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)', borderStyle: 'dashed' }}>
                   <CheckCircle2 size={40} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-                  <p>{searchTerm ? 'No completed debts match your search.' : 'No completed debts found.'}</p>
+                  <p>{(searchTerm || filters.mode !== 'all') ? 'No completed debts match your filters.' : 'No completed debts found.'}</p>
                 </div>
               ) : (
-                debts.filter(d => d.status === 'completed')
-                  .filter(d => d.person.toLowerCase().includes(searchTerm.toLowerCase()) || (d.notes && d.notes.toLowerCase().includes(searchTerm.toLowerCase())))
-                  .map((debt) => (
+                processedDebts.map((debt) => (
                     <DebtCard 
                       key={debt.id} 
                       debt={debt} 
@@ -391,6 +569,11 @@ const DebtCard = ({
               <span style={{ color: 'var(--income)' }}>Receivable</span>
             ) : (
               <span style={{ color: 'var(--expense)' }}>Payable</span>
+            )}
+            {debt.mode && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)' }}>
+                 • {debt.mode}
+              </span>
             )}
           </div>
         </div>

@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.debts (
     date DATE DEFAULT CURRENT_DATE,
     due_date DATE,
     notes TEXT,
+    mode TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
