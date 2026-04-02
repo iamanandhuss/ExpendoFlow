@@ -139,8 +139,19 @@ const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpd
     delete debtToSave.customMode;
     
     if (editingId) {
-      // When editing, only update metadata fields — don't reset payment progress
+      // When editing, recalculate remaining if amount changed
+      const originalDebt = debts.find(d => d.id === editingId);
       const { status, remaining, ...editFields } = debtToSave;
+      
+      if (originalDebt && parseFloat(formData.amount) !== parseFloat(originalDebt.amount)) {
+        // Preserve how much was already paid, adjust remaining for new amount
+        const alreadyPaid = parseFloat(originalDebt.amount) - parseFloat(originalDebt.remaining);
+        const newRemaining = Math.max(0, parseFloat(formData.amount) - alreadyPaid);
+        editFields.remaining = newRemaining;
+        editFields.amount = parseFloat(formData.amount);
+        if (newRemaining <= 0) editFields.status = 'completed';
+      }
+      
       onUpdateDebt(editingId, editFields);
     } else {
       // When adding new, include status and remaining
