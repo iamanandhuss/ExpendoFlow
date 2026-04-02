@@ -12,7 +12,9 @@ import {
   History,
   TrendingUp,
   Clock,
-  Loader2
+  Loader2,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from './lib/supabase';
@@ -29,6 +31,12 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    isOpen: false, 
+    title: '', 
+    message: '', 
+    onConfirm: null 
+  });
 
   // Global State
   const [transactions, setTransactions] = useState([]);
@@ -153,6 +161,25 @@ function App() {
   const deleteDebt = async (id) => {
     const { error } = await supabase.from('debts').delete().eq('id', id);
     if (!error) setDebts(debts.filter(d => d.id !== id));
+  };
+
+  const confirmAction = (title, message, onConfirm, isDestructive = true) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      isDestructive,
+      onConfirm: async () => {
+        await onConfirm();
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const updateTransaction = async (id, updates) => {
+    const { data, error } = await supabase.from('transactions').update(updates).eq('id', id).select();
+    if (data) setTransactions(transactions.map(t => t.id === id ? data[0] : t));
+    if (error) console.error('Error updating transaction:', error);
   };
 
   const addCard = async (card) => {
@@ -325,9 +352,41 @@ function App() {
             transition={{ duration: 0.2 }}
           >
             {activeTab === 'dashboard' && <Dashboard totals={totals} latestTransactions={transactions.slice(0, 5)} allTransactions={transactions} />}
-            {activeTab === 'transactions' && <Transactions transactions={transactions} onAddTransaction={addTransaction} onDeleteTransaction={deleteTransaction} />}
-            {activeTab === 'debts' && <DebtManager debts={debts} allTransactions={transactions} cards={cards} onAddDebt={addDebt} onUpdateDebt={updateDebt} onDeleteDebt={deleteDebt} />}
-            {activeTab === 'cards' && <CreditCards cards={cards} onAddCard={addCard} onAddUsage={updateCardUsage} onAddPayment={addCardPayment} onDeleteCard={deleteCard} />}
+            {activeTab === 'transactions' && (
+              <Transactions 
+                transactions={transactions} 
+                onAddTransaction={addTransaction} 
+                onUpdateTransaction={(id, updates) => confirmAction('Update Transaction', 'Are you sure you want to save these changes? This will permanently modify the record.', () => updateTransaction(id, updates), false)}
+                onDeleteTransaction={(id) => confirmAction('Delete Transaction', 'Are you sure you want to delete this record? This action cannot be undone.', () => deleteTransaction(id))} 
+              />
+            )}
+            {activeTab === 'debts' && (
+              <DebtManager 
+                debts={debts} 
+                allTransactions={transactions} 
+                cards={cards} 
+                onAddDebt={addDebt} 
+                onUpdateDebt={(id, updates, paymentAmount = null) => {
+                  // If it's a simple status change or payment, don't necessarily show warning unless it's a full edit
+                  const isFullEdit = updates.person || updates.amount || updates.date;
+                  if (isFullEdit) {
+                    confirmAction('Update Debt Entry', 'Are you sure you want to save these changes to the debt record?', () => updateDebt(id, updates, paymentAmount), false);
+                  } else {
+                    updateDebt(id, updates, paymentAmount);
+                  }
+                }} 
+                onDeleteDebt={(id) => confirmAction('Delete Debt', 'Are you sure you want to delete this debt entry? This will permanently remove the record.', () => deleteDebt(id))} 
+              />
+            )}
+            {activeTab === 'cards' && (
+              <CreditCards 
+                cards={cards} 
+                onAddCard={addCard} 
+                onAddUsage={updateCardUsage} 
+                onAddPayment={(id, amount) => confirmAction('Confirm Payment', `Are you sure you want to record a payment of ₹${amount.toLocaleString()}?`, () => addCardPayment(id, amount), false)}
+                onDeleteCard={(id) => confirmAction('Delete Card', 'Are you sure you want to delete this credit card? All card history will be removed.', () => deleteCard(id))} 
+              />
+            )}
             
             {activeTab === 'settings' && (
               <div className="glass-card" style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
@@ -363,6 +422,66 @@ function App() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Global Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDialog.isOpen && (
+          <div style={{ 
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            zIndex: 10000, padding: '1rem'
+          }}>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="glass-card"
+              style={{ 
+                width: '100%', maxWidth: '400px', padding: '2rem', background: 'white', 
+                position: 'relative', zIndex: 1, borderRadius: '24px', textAlign: 'center',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ 
+                width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: '#ef4444'
+              }}>
+                <AlertTriangle size={32} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>{confirmDialog.title}</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: 1.5 }}>{confirmDialog.message}</p>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button 
+                  onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+                  className="btn btn-ghost" 
+                  style={{ flex: 1, padding: '0.75rem' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDialog.onConfirm}
+                  className="btn" 
+                  style={{ 
+                    flex: 1, padding: '0.75rem', 
+                    background: confirmDialog.isDestructive !== false ? '#ef4444' : 'var(--primary)', 
+                    color: 'white', 
+                    border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer' 
+                  }}
+                >
+                  {confirmDialog.isDestructive !== false ? 'Delete' : 'Confirm'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

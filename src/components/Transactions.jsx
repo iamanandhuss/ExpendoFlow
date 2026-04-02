@@ -14,7 +14,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Edit2
 } from 'lucide-react';
 
 const TRANSACTION_CATEGORIES = {
@@ -22,8 +23,9 @@ const TRANSACTION_CATEGORIES = {
   expense: ['Food', 'Travel', 'Rent', 'EMI', 'Shopping', 'Health', 'Entertainment', 'Personal', 'Debt', 'Other']
 };
 
-const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) => {
+const Transactions = ({ transactions, onAddTransaction, onUpdateTransaction, onDeleteTransaction }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [filterType, setFilterType] = useState('all');
   const [formData, setFormData] = useState({ 
     title: '', 
@@ -44,12 +46,44 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.title || !formData.amount) return;
-    onAddTransaction({ ...formData, amount: parseFloat(formData.amount) });
+    
+    // Only send fields that exist in the DB schema
+    const cleanData = {
+      title: formData.title,
+      amount: parseFloat(formData.amount),
+      type: formData.type,
+      category: formData.category,
+      date: formData.date,
+      notes: formData.notes || null
+    };
+
+    if (editingId) {
+      onUpdateTransaction(editingId, cleanData);
+    } else {
+      onAddTransaction(cleanData);
+    }
+    
     setIsAdding(false);
+    setEditingId(null);
     setFormData({ 
       title: '', amount: '', type: 'expense', category: 'Food', 
       date: new Date().toISOString().split('T')[0], notes: '' 
     });
+  };
+
+
+  const handleEdit = (tx) => {
+    setFormData({
+      title: tx.title,
+      amount: tx.amount.toString(),
+      type: tx.type,
+      category: tx.category,
+      date: tx.date,
+      notes: tx.notes || ''
+    });
+    setEditingId(tx.id);
+    setIsAdding(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSort = (key) => {
@@ -112,8 +146,11 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
             onClick={() => setFilterType('expense')}
           >Expense</button>
         </div>
-        <button className="btn btn-primary" onClick={() => setIsAdding(true)}>
-          <Plus size={18} /> Add New
+        <button className="btn btn-primary" onClick={() => {
+          setIsAdding(!isAdding);
+          if (isAdding) setEditingId(null);
+        }}>
+          <Plus size={18} /> {isAdding ? 'Close Form' : 'Add New'}
         </button>
       </div>
 
@@ -167,8 +204,13 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
               />
             </div>
             <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-ghost" onClick={() => setIsAdding(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary">Add Entry</button>
+              <button type="button" className="btn btn-ghost" onClick={() => {
+                setIsAdding(false);
+                setEditingId(null);
+              }}>Cancel</button>
+              <button type="submit" className="btn btn-primary">
+                {editingId ? 'Save Changes' : 'Add Entry'}
+              </button>
             </div>
           </form>
         </div>
@@ -233,13 +275,24 @@ const Transactions = ({ transactions, onAddTransaction, onDeleteTransaction }) =
                   {tx.type === 'income' ? '+' : '-'}₹{parseFloat(tx.amount).toLocaleString()}
                 </td>
                 <td style={{ padding: '1rem', textAlign: 'right' }}>
-                  <button 
-                    className="btn-ghost" 
-                    style={{ border: 'none', color: 'var(--expense)', padding: '0.4rem' }}
-                    onClick={() => onDeleteTransaction(tx.id)}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button 
+                      className="btn-ghost" 
+                      style={{ border: 'none', color: 'var(--primary)', padding: '0.4rem' }}
+                      onClick={() => handleEdit(tx)}
+                      title="Edit Transaction"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      className="btn-ghost" 
+                      style={{ border: 'none', color: 'var(--expense)', padding: '0.4rem' }}
+                      onClick={() => onDeleteTransaction(tx.id)}
+                      title="Delete Transaction"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

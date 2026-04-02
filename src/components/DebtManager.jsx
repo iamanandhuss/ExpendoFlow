@@ -12,8 +12,8 @@ import {
   Search,
   Filter,
   SortDesc,
-  RotateCcw,
-  Check
+  Check,
+  Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
@@ -26,6 +26,7 @@ const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpd
   const [type, setType] = useState('give'); // 'give' (receivable) or 'take' (payable)
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('active'); // 'active' or 'completed'
+  const [editingId, setEditingId] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ mode: 'all', status: 'all' });
   const [sortBy, setSortBy] = useState('date-desc');
@@ -132,15 +133,22 @@ const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpd
       mode: finalMode,
       due_date: formData.due_date || null,
       type,
-      status: 'pending',
-      remaining: parseFloat(formData.amount)
     };
     
-    // Remove customMode from output
+    // Always remove customMode — it's not a DB column
     delete debtToSave.customMode;
     
-    onAddDebt(debtToSave);
+    if (editingId) {
+      // When editing, only update metadata fields — don't reset payment progress
+      const { status, remaining, ...editFields } = debtToSave;
+      onUpdateDebt(editingId, editFields);
+    } else {
+      // When adding new, include status and remaining
+      onAddDebt({ ...debtToSave, status: 'pending', remaining: parseFloat(formData.amount) });
+    }
+    
     setIsAdding(false);
+    setEditingId(null);
     setFormData({ 
       person: '', 
       amount: '', 
@@ -150,6 +158,26 @@ const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpd
       mode: 'Cash',
       customMode: ''
     });
+  };
+
+
+  const handleEdit = (debt) => {
+    const isCard = cards.some(c => `${c.bank} (*${c.last_four})` === debt.mode);
+    const isOther = debt.mode && !isCard && debt.mode !== 'Cash' && debt.mode !== 'Bank Transfer';
+    
+    setFormData({
+      person: debt.person,
+      amount: debt.amount.toString(),
+      date: debt.date,
+      due_date: debt.due_date || '',
+      notes: debt.notes || '',
+      mode: isOther ? 'Other' : (debt.mode || 'Cash'),
+      customMode: isOther ? debt.mode : ''
+    });
+    setType(debt.type);
+    setEditingId(debt.id);
+    setIsAdding(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const totals = debts.reduce((acc, debt) => {
@@ -408,8 +436,13 @@ const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpd
                 </div>
               )}
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setIsAdding(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Entry</button>
+                <button type="button" className="btn btn-ghost" onClick={() => {
+                  setIsAdding(false);
+                  setEditingId(null);
+                }}>Cancel</button>
+                <button type="submit" className="btn btn-primary">
+                   {editingId ? 'Save Changes' : 'Save Entry'}
+                </button>
               </div>
             </form>
           </motion.div>
@@ -483,6 +516,7 @@ const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpd
                       debt={debt} 
                       onUpdateDebt={onUpdateDebt} 
                       onDeleteDebt={onDeleteDebt} 
+                      onEdit={handleEdit}
                       downloadPDF={downloadPDF}
                       payingDebtId={payingDebtId}
                       setPayingDebtId={setPayingDebtId}
@@ -506,6 +540,7 @@ const DebtManager = ({ debts, allTransactions = [], cards = [], onAddDebt, onUpd
                       debt={debt} 
                       onUpdateDebt={onUpdateDebt} 
                       onDeleteDebt={onDeleteDebt} 
+                      onEdit={handleEdit}
                       downloadPDF={downloadPDF}
                       payingDebtId={payingDebtId}
                       setPayingDebtId={setPayingDebtId}
@@ -526,6 +561,7 @@ const DebtCard = ({
   debt, 
   onUpdateDebt, 
   onDeleteDebt, 
+  onEdit,
   downloadPDF, 
   payingDebtId, 
   setPayingDebtId, 
@@ -621,8 +657,17 @@ const DebtCard = ({
           )}
           <button 
             className="btn-ghost" 
+            style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--primary)' }}
+            onClick={() => onEdit(debt)}
+            title="Edit Entry"
+          >
+            <Edit2 size={18} />
+          </button>
+          <button 
+            className="btn-ghost" 
             style={{ padding: '0.5rem', borderRadius: '8px', border: 'none', color: 'var(--expense)' }}
             onClick={() => onDeleteDebt(debt.id)}
+            title="Delete Entry"
           >
             <Trash2 size={18} />
           </button>
